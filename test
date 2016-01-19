@@ -1,0 +1,42 @@
+#!/bin/bash
+set -e
+
+function abort()
+{
+	echo "$@"
+	exit 1
+}
+
+function cleanup()
+{
+  echo " --> Cleaning up"
+  echo " --> Stopping container"
+  docker stop $ID >/dev/null
+  docker rm $ID >/dev/null
+  echo "Finished at $(date -u +%Y-%m-%dT%H:%M:%S%z)"
+}
+
+echo "Started at $(date -u +%Y-%m-%dT%H:%M:%S%z)"
+trap cleanup EXIT
+
+echo " --> Starting container"
+export ID=`docker run -d $NAME:$VERSION`
+sleep 5
+
+echo " --> Verifying container"
+docker ps -q | grep ^${ID:0:12} > /dev/null
+if [ $? -ne 0 ]; then
+  abort "Unable to verify container IP"
+else
+  echo " --> Container verified"
+fi
+
+echo " --> Running tests"
+
+echo " --> Checking $APP_NAME process"
+docker exec -it $ID ruby -v | grep $VERSION > /dev/null
+if [ $? -ne 0 ]; then
+  abort "No Ruby version $VERSION present"
+else
+  echo " --> Ruby version $VERSION is present"
+fi
